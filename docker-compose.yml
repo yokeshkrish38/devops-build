@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  react-app:
+    image: ${IMAGE_NAME}:${TAG}
+    container_name: react-app
+    ports:
+      - "80:80"
+    restart: always
+
