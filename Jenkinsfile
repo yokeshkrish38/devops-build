@@ -9,31 +9,19 @@ pipeline {
 
     stages {
 
-        stage('Detect Branch') {
-            steps {
-                script {
-                    env.BRANCH = sh(
-                        script: "git rev-parse --abbrev-ref HEAD",
-                        returnStdout: true
-                    ).trim()
-
-                    if (env.BRANCH == 'dev') {
-                        env.DEPLOY_IMAGE = "${DEV_IMAGE}:${TAG}"
-                    } else if (env.BRANCH == 'main' || env.BRANCH == 'master') {
-                        env.DEPLOY_IMAGE = "${PROD_IMAGE}:${TAG}"
-                    } else {
-                        error "Unsupported branch: ${env.BRANCH}"
-                    }
-
-                    echo "Branch: ${env.BRANCH}"
-                    echo "Deploy Image: ${env.DEPLOY_IMAGE}"
-                }
-            }
-        }
-
         stage('Build Image') {
             steps {
-                sh "docker build -t ${DEPLOY_IMAGE} ."
+                script {
+                    echo "Branch detected: ${env.BRANCH_NAME}"
+
+                    if (env.BRANCH_NAME == 'dev') {
+                        sh "docker build -t ${DEV_IMAGE}:${TAG} ."
+                    } else if (env.BRANCH_NAME == 'main') {
+                        sh "docker build -t ${PROD_IMAGE}:${TAG} ."
+                    } else {
+                        error "Unsupported branch: ${env.BRANCH_NAME}"
+                    }
+                }
             }
         }
 
@@ -45,7 +33,7 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                      echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                     '''
                 }
             }
@@ -53,20 +41,27 @@ pipeline {
 
         stage('Push Image') {
             steps {
-                sh "docker push ${DEPLOY_IMAGE}"
+                script {
+                    if (env.BRANCH_NAME == 'dev') {
+                        sh "docker push ${DEV_IMAGE}:${TAG}"
+                    } else {
+                        sh "docker push ${PROD_IMAGE}:${TAG}"
+                    }
+                }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh '''
-                    docker stop react-app || true
-                    docker rm react-app || true
+                script {
+                    def IMAGE = (env.BRANCH_NAME == 'dev') ? DEV_IMAGE : PROD_IMAGE
 
-                    docker run -d -p 80:80 \
-                      --name react-app \
-                      '"$DEPLOY_IMAGE"'
-                '''
+                    sh """
+                      docker stop react-app || true
+                      docker rm react-app || true
+                      docker run -d -p 80:80 --name react-app ${IMAGE}:${TAG}
+                    """
+                }
             }
         }
     }
