@@ -1,4 +1,4 @@
-🚀 Project 1 – React App CI/CD with Monitoring
+🚀 Project 3 – Reactjs E-commerce Application
 🔹 Project Overview
 
 This project demonstrates a complete DevOps CI/CD pipeline for a ReactJS application using Jenkins, Docker, Docker Hub, and AWS EC2, along with monitoring using Prometheus and Grafana.
